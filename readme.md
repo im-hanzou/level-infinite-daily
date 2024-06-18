@@ -18,3 +18,8 @@ cookie1
 cookie2
 cookie3
 ```
+- Run script
+  
+```
+npm start
+```
