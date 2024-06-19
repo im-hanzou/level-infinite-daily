@@ -1,6 +1,6 @@
 import axios from 'axios';
 import fs from 'fs';
-import chalk from 'chalk'
+import chalk from 'chalk';
 import { failMessage, infoMessage, successMessage } from './chalk.js';
 
 const hourglassFrames = [
@@ -9,14 +9,13 @@ const hourglassFrames = [
   '⌛',
   '⏳'
 ];
+
 const getUserInfo = async (header) => {
   try {
     const { data } = await axios.get(
       'https://api-pass.levelinfinite.com/api/ugc/user/get_info',
       {
-        headers: {
-          ...header,
-        },
+        headers: { ...header },
       }
     );
     return data.data;
@@ -30,12 +29,8 @@ const getTask = async (header) => {
     const { data } = await axios.get(
       'https://api-pass.levelinfinite.com/api/rewards/proxy/lipass/Points/GetTaskListWithStatus',
       {
-        params: {
-          language: 'en',
-        },
-        headers: {
-          ...header,
-        },
+        params: { language: 'en' },
+        headers: { ...header },
       }
     );
     return data.data;
@@ -49,9 +44,7 @@ const checkLogin = async (header) => {
     const { data } = await axios.get(
       'https://api-pass.levelinfinite.com/api/ugc/user/check_login',
       {
-        headers: {
-          ...header,
-        },
+        headers: { ...header },
       }
     );
     if (data) {
@@ -67,13 +60,9 @@ const reqDailyCheckin = async (header) => {
   try {
     const { data } = await axios.post(
       'https://api-pass.levelinfinite.com/api/rewards/proxy/lipass/Points/DailyCheckIn',
+      { task_id: '15' },
       {
-        task_id: '15',
-      },
-      {
-        headers: {
-          ...header,
-        },
+        headers: { ...header },
       }
     );
     if (data) {
@@ -93,7 +82,7 @@ const calculateDelay = (lastCheckinTime) => {
 
 const displayCooldown = async (delay) => {
   let elapsed = 0;
-  const interval = 1000; 
+  const interval = 1000;
   let frameIndex = 0;
 
   return new Promise((resolve) => {
@@ -119,7 +108,6 @@ const displayCooldown = async (delay) => {
   });
 };
 
-
 const processCheckin = async (header, lastCheckinTime) => {
   const delay = calculateDelay(lastCheckinTime);
 
@@ -128,25 +116,26 @@ const processCheckin = async (header, lastCheckinTime) => {
     await displayCooldown(delay);
   }
 
-  setTimeout(async () => {
-    try {
-      const userInfo = await getUserInfo(header);
-      successMessage(`Logged in as ${userInfo.username}`);
+  try {
+    const userInfo = await getUserInfo(header);
+    successMessage(`Logged in as ${userInfo.username}`);
 
-      const rewardInfo = await getTask(header);
-      if (rewardInfo.tasks[0].is_completed === true) {
-        failMessage(`Username ${userInfo.username} already checked in. Wait for tommorow.`);
-      } else {
-        infoMessage(`Username ${userInfo.username} is doing daily check-in`);
-        await reqDailyCheckin(header);
-        infoMessage(`Check-in completed for ${userInfo.username}, scheduling next check-in.`);
-      }
-
-      processCheckin(header, Date.now());
-    } catch (error) {
-      console.log(error);
+    const rewardInfo = await getTask(header);
+    if (rewardInfo.tasks[0].is_completed === true) {
+      failMessage(`Username ${userInfo.username} already checked in. Wait for tomorrow.`);
+    } else {
+      infoMessage(`Username ${userInfo.username} is doing daily check-in`);
+      await reqDailyCheckin(header);
+      infoMessage(`Check-in completed for ${userInfo.username}, scheduling next check-in.`);
     }
-  }, delay);
+
+    const nextCheckinDelay = 24 * 60 * 60 * 1000;
+    await displayCooldown(nextCheckinDelay);
+
+    processCheckin(header, Date.now());
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 (async () => {
